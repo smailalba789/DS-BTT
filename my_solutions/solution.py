@@ -10,7 +10,15 @@ def maxProfit(prices):
 
 
 def twoSum(nums, target):
- # TODO add you solution
- print('hi hi hi')
- return 10
- 
+    # Dictionary to store number -> index
+    num_to_index = {}
+
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in num_to_index:
+            return [num_to_index[complement], i]
+        num_to_index[num] = i
+
+    # If no solution found (usually the problem guarantees one solution)
+    return []
+
