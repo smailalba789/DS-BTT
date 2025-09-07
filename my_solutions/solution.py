@@ -3,7 +3,7 @@
 def maxProfit(prices):
   # TODO add you solution
   print('Hi')
-  return 100
+  return 1
 
 
 
@@ -12,5 +12,5 @@ def maxProfit(prices):
 def twoSum(nums, target):
  # TODO add you solution
  print('Hi')
- return 1000
+ return 10
  
