@@ -1,56 +1,125 @@
-# .github/workflows/grader.yml
-name: Auto Grade Solutions
+# .github/workflows/auto_grade.yml
+# GitHub Actions workflow for DS-BTT-test repository
+
+name: 🎯 Auto Grade DS Solutions
 
 on:
-  push:
-    branches: [ main ]
-    paths: 
-      - 'my_solutions/**'
   pull_request:
     branches: [ main ]
+    paths: 
+      - 'my_solutions/solution.py'
+  push:
+    branches: [ main ]
     paths:
-      - 'my_solutions/**'
+      - 'my_solutions/solution.py'
+  workflow_dispatch: # Allow manual triggering
 
 jobs:
   grade:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - name: 🔄 Checkout code
+      uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v3
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
+        python-version: '3.11'
     
-    - name: Install dependencies
+    - name: 📦 Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        pip install requests
     
-    - name: Run grader
+    - name: 🎯 Run Auto-Grader
+      id: grading
       run: |
-        python grader.py
+        python grader.py > grading_output.txt 2>&1
+        cat grading_output.txt
+        echo "RESULTS<<EOF" >> $GITHUB_OUTPUT
+        cat grade_results.txt >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
     
-    - name: Run tests
+    - name: 🏆 Update Leaderboards
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_ACTOR: ${{ github.actor }}
       run: |
-        python -m pytest tests/ -v
+        python leaderboard.py
     
-    - name: Comment results on PR
+    - name: 📊 Comment Results on PR
       if: github.event_name == 'pull_request'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');
+          
           try {
+            // Read grading results
             const results = fs.readFileSync('grade_results.txt', 'utf8');
+            const userScore = JSON.parse(fs.readFileSync('user_score.json', 'utf8'));
+            
+            // Create a nice comment
+            const comment = `## 🎯 Auto-Grading Results
+            
+            ### Your Score: ${userScore.total_score}/${userScore.total_possible} (${userScore.percentage.toFixed(1)}%)
+            
+            | Problem | Score | Status |
+            |---------|-------|--------|
+            | Two Sum | ${userScore.two_sum_score}/${userScore.two_sum_total} | ${userScore.two_sum_score === userScore.two_sum_total ? '✅ Perfect!' : '⚠️ Needs work'} |
+            | Max Profit | ${userScore.max_profit_score}/${userScore.max_profit_total} | ${userScore.max_profit_score === userScore.max_profit_total ? '✅ Perfect!' : '⚠️ Needs work'} |
+            
+            ### 🏆 Leaderboard Status
+            ${userScore.percentage === 100 ? '🎉 **PERFECT SCORE!** You\'re at the top!' : userScore.percentage >= 80 ? '👍 **Great job!** You\'re in the top tier!' : '📚 **Keep improving!** Review the failed tests and try again.'}
+            
+            ### 📋 Detailed Results
+            \`\`\`
+            ${results}
+            \`\`\`
+            
+            ### 🚀 Next Steps
+            ${userScore.percentage < 100 ? 
+              '- Review the failed test cases\n- Check your algorithm logic\n- Test with edge cases\n- Push updates to improve your score!' : 
+              '- Congratulations on the perfect score!\n- Help others in discussions\n- Try optimizing your solution further'}
+              
+            ---
+            *Check the updated [leaderboard](./LEADERBOARD.md) to see your ranking!*
+            `;
+            
+            // Post the comment
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## Grading Results\n\`\`\`\n${results}\n\`\`\``
+              body: comment
             });
+            
           } catch (error) {
-            console.log('No grade results file found');
+            console.log('Could not post detailed comment:', error);
+            // Fallback simple comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🎯 Auto-grading completed! Check the workflow logs for details.'
+            });
           }
+    
+    - name: 🏅 Award Perfect Score Badge
+      if: contains(steps.grading.outputs.RESULTS, '100.0%')
+      run: |
+        echo "🏆 PERFECT SCORE ACHIEVEMENT! 🏆" >> $GITHUB_STEP_SUMMARY
+        echo "Congratulations! You've solved both problems correctly!" >> $GITHUB_STEP_SUMMARY
+        echo "- Two Sum: ✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+        echo "- Max Profit: ✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+    
+    - name: 📈 Upload Results
+      uses: actions/upload-artifact@v3
+      with:
+        name: grading-results-${{ github.run_number }}
+        path: |
+          grade_results.txt
+          user_score.json
+          LEADERBOARD.md
+        retention-days: 30
