@@ -11,6 +11,6 @@ def maxProfit(prices):
 
 def twoSum(nums, target):
  # TODO add you solution
- print('Hi')
+ print('hi hi hi')
  return 10
  
