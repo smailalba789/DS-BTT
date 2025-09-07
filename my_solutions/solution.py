@@ -2,6 +2,7 @@
 
 def maxProfit(prices):
   # TODO add you solution
+  print('Hi')
 
 
 
