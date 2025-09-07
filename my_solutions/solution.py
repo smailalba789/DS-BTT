@@ -9,3 +9,4 @@ def maxProfit(prices):
 
 def twoSum(nums, target):
  # TODO add you solution
+ print('Hi')
