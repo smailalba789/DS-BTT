@@ -1,23 +1,56 @@
-name: Auto Grader
+# .github/workflows/grader.yml
+name: Auto Grade Solutions
 
 on:
+  push:
+    branches: [ main ]
+    paths: 
+      - 'my_solutions/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'my_solutions/**'
 
 jobs:
-  test:
+  grade:
     runs-on: ubuntu-latest
-
+    
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install pytest
-        run: pip install pytest
-
-      - name: Run grader
-        run: python grader.py
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Run grader
+      run: |
+        python grader.py
+    
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v
+    
+    - name: Comment results on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const results = fs.readFileSync('grade_results.txt', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Grading Results\n\`\`\`\n${results}\n\`\`\``
+            });
+          } catch (error) {
+            console.log('No grade results file found');
+          }
